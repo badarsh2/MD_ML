@@ -1,8 +1,13 @@
+import matplotlib
+matplotlib.use('agg')
+
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
 
 path = 'Al_structure_files/DatasetA/bulk_1250K.xyz'
 
@@ -38,6 +43,8 @@ while True:
 
 		r_euc = np.sqrt(np.multiply(r1, r1) + np.multiply(r2, r2) + np.multiply(r3, r3))
 
+		# print(r_euc)
+
 		cos1 = np.divide(r1, r_euc)
 		cos1[np.where(np.isnan(cos1))] = 0.
 
@@ -59,25 +66,36 @@ while True:
 		except NameError:
 			X_train = np.vstack((np.vstack((v1, v2)), v3))
 
-		print X_train.shape
+		print (X_train.shape)
 
 	else:
 		break
 
 xyz.close()
 
-lambdas = np.logspace(-5, 5, 50)
-sigmas = np.logspace(-5, 5, 50)
+lambdas = np.logspace(-12, 2, 15)
+sigmas = np.logspace(-12, 2, 15)
 
 parameter_grid = {
 	'alpha': lambdas,
 	'gamma': sigmas
 }
 
-gscv = GridSearchCV(KernelRidge(kernel='rbf'), param_grid=parameter_grid, cv=5, n_jobs=-1)
-# gscv = KernelRidge(kernel='rbf', alpha=1., gamma=0.01)
-gscv.fit(X_train[:, :6000].T, np.array(f1)[:6000])
-print gscv.predict(X_train[:, 6000:].T), np.array(f1)[6000:]
+X_train, X_test, y_train, y_test = train_test_split(X_train.T, f3, test_size=0.1)
 
-print gscv.best_estimator_
-print gscv.cv_results_
+# gscv = GridSearchCV(KernelRidge(kernel='rbf'), param_grid=parameter_grid, cv=5, n_jobs=4)
+gscv = KernelRidge(kernel='rbf', alpha=0.001, gamma=100)
+gscv.fit(X_train, y_train)
+print(gscv.predict(X_test), y_test)
+print (mean_absolute_error(gscv.predict(X_test), y_test))
+
+np.savetxt("output_sample.csv", np.c_[gscv.predict(X_test), y_test])
+
+plt.plot(y_test, gscv.predict(X_test), 'ro')
+plt.xlabel("Quantum Mechanical forces")
+plt.ylabel("ML forces")
+plt.title("Axis 2")
+plt.savefig("op3.png")
+
+# print gscv.best_estimator_
+# print gscv.cv_results_
